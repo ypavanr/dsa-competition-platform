@@ -1,4 +1,76 @@
+import { useState } from "react";
+
+import axios from "axios";
+
+
 function LandingPage() {
+const [studentName, setStudentName] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const GATEWAY_URL = "http://localhost:8000";
+  const handleStudentLogin = async () => {
+    if (!studentName.trim()) {
+      setMessage("Please enter your name.");
+      return;
+    }
+        try {
+       const response = await axios.post(`${GATEWAY_URL}/student-login`, {
+      username: studentName,
+    });
+
+      setMessage(response.data.message);
+    console.log("Student Token:", response.data.access_token);
+    localStorage.setItem("studentToken", response.data.access_token);
+    localStorage.setItem("username", studentName);
+    console.log(localStorage.getItem("username"))
+      
+    } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const errMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Invalid credentials.";
+      setMessage(errMsg);
+    } else if (error instanceof Error) {
+      setMessage(error.message || "Unexpected error occurred.");
+    } else {
+      setMessage("Error connecting to the server.");
+    }
+    console.error(error);
+  }
+  };
+
+   const handleAdminLogin = async () => {
+    if (!adminPassword.trim()) {
+      setMessage("Please enter admin password.");
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${GATEWAY_URL}/admin-login`, {
+      password: adminPassword,
+    });
+
+      setMessage(response.data.message);
+    console.log("Admin Token:", response.data.access_token);
+    localStorage.setItem("adminToken", response.data.access_token);
+      
+    } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const errMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Invalid credentials.";
+      setMessage(errMsg);
+    } else if (error instanceof Error) {
+      setMessage(error.message || "Unexpected error occurred.");
+    } else {
+      setMessage("Error connecting to the server.");
+    }
+    console.error(error);
+  }
+  };  
+
   return (
     <main className="min-h-screen bg-[#ffff00] flex flex-col">
       <header className="pt-8">
@@ -36,12 +108,14 @@ function LandingPage() {
             <input
               type="password"
               placeholder="password..."
+               value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
               className="mt-4 mb-4 w-full rounded-md border border-gray-300 px-3 py-2
                          focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
             <div className="flex justify-center">
               <button
-                type="submit"
+                onClick={handleAdminLogin}
                 className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white
                            hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-black/30"
               >
@@ -59,12 +133,14 @@ function LandingPage() {
             <input
               type="text"
               placeholder="enter your name..."
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
               className="mt-4 mb-4 w-full rounded-md border border-gray-300 px-3 py-2
                          focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
             <div className="flex justify-center">
               <button
-                type="submit"
+               onClick={handleStudentLogin}
                 className="rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white
                            hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-black/30"
               >
@@ -74,6 +150,10 @@ function LandingPage() {
           </div>
         </div>
       </section>
+      
+      {message && (
+        <p className="text-center text-black font-medium mt-6 mb-10">{message}</p>
+      )}
     </main>
   );
 }

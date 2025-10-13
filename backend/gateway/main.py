@@ -2,10 +2,12 @@ from fastapi import FastAPI, Request, HTTPException, status
 from pydantic import BaseModel
 from confluent_kafka import Producer
 from contextlib import asynccontextmanager
-from jose import jwt
-from datetime import datetime, timedelta
+from jose import jwt, JWTError
+from datetime import datetime, timedelta, timezone
 import json, uuid, socket, logging
 from connect_db import preload_usernames_async, redis_client  
+from fastapi.middleware.cors import CORSMiddleware
+
 SECRET_KEY = "supersecretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
@@ -34,34 +36,41 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, title="Gateway API")
 
-# Models
+origins = [
+    "http://localhost:5173",  
+    "http://localhost:3000", 
+    "http://127.0.0.1:5173",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],   
+    allow_headers=["*"],   
+)
 class StudentLogin(BaseModel):
     username: str
 
 class AdminLogin(BaseModel):
     password: str
 
-# JWT helper
 def create_jwt_token(data: dict):
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     data.update({"exp": expire})
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
-# Redis helpers
 async def student_exists(username: str) -> bool:
     return bool(await redis_client.exists(username))
 
 async def cache_student(username: str):
     await redis_client.set(username, 1)
 
-# Kafka callback
 def kafka_callback(err, msg):
     if err:
         logger.error(f" Kafka delivery failed: {err}")
     else:
         logger.info(f" Kafka message delivered to {msg.topic()} offset {msg.offset()}")
 
-# Routes
 @app.post("/student-login", status_code=status.HTTP_200_OK)
 async def login_student(user_data: StudentLogin, request: Request):
     username = user_data.username.strip().lower()
@@ -72,7 +81,7 @@ async def login_student(user_data: StudentLogin, request: Request):
         raise HTTPException(status_code=400, detail="Username cannot be empty")
 
     if await student_exists(username):
-        logger.info(f"👤 Returning cached student login for '{username}'.")
+        logger.info(f" Returning cached student login for '{username}'.")
     else:
         event = {
             "event_id": str(uuid.uuid4()),
@@ -89,7 +98,7 @@ async def login_student(user_data: StudentLogin, request: Request):
             )
             producer.poll(0)
             await cache_student(username)
-            logger.info(f" New student '{username}' cached and Kafka event published.")
+            logger.info(f" --MESSAGE-- New student '{username}' cached and Kafka event published.")
         except Exception as e:
             logger.error(f" Kafka produce error: {e}")
             raise HTTPException(status_code=503, detail="Failed to publish login event")

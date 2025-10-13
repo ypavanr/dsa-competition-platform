@@ -10,7 +10,7 @@ import threading, json, logging, time
 KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
 KAFKA_GROUP_ID = "login-service-group"
 STUDENT_TOPIC = "student-logins"
-POSTGRES_URL = "postgresql+psycopg2://postgres:password@localhost:5432/login_db"
+POSTGRES_URL = "postgresql+psycopg2://postgres:5436@localhost:5432/dsa"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("LoginService")
@@ -41,7 +41,7 @@ def handle_student_event(event_data: dict):
     ip_address = event_data.get("ip_address")
 
     if not username:
-        logger.warning(" Missing username in event. Skipping.")
+        logger.warning("--WARNING-- Missing username in event. Skipping.")
         return
 
     db = SessionLocal()
@@ -86,7 +86,7 @@ def kafka_consumer_loop(stop_event: threading.Event):
     })
 
     consumer.subscribe([STUDENT_TOPIC])
-    logger.info(f"🎧 Listening to Kafka topic: {STUDENT_TOPIC}")
+    logger.info(f"--LISTENING-- Listening to Kafka topic: {STUDENT_TOPIC}")
 
     while not stop_event.is_set():
         msg = consumer.poll(timeout=1.0)
@@ -114,14 +114,14 @@ async def lifespan(app: FastAPI):
     running.clear()
     thread = threading.Thread(target=kafka_consumer_loop, args=(running,), daemon=True)
     thread.start()
-    logger.info("🚀 Kafka consumer thread started.")
+    logger.info("--STARTED-- Kafka consumer thread started.")
 
     yield  
 
-    logger.info("🧹 Shutting down Kafka consumer...")
+    logger.info(" --SHUTDOWN-- Shutting down Kafka consumer...")
     running.set()
     thread.join(timeout=5)
-    logger.info("✅ Login microservice shutdown complete.")
+    logger.info(" --SHUTDOWN-- Login microservice shutdown complete.")
 
 app = FastAPI(lifespan=lifespan, title="Login Microservice")
 
