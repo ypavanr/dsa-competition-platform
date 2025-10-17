@@ -70,9 +70,39 @@ const [studentName, setStudentName] = useState("");
     console.error(error);
   }
   };  
+const symbols = ["{}", "</>", "λ", "💻", "⚙️", "∑", "∞", "()", "<>", "π","{}", "</>", "λ", "💻", "⚙️", "∑", "∞", "()", "<>", "π"];
+  const floatingElements = symbols.map((sym, idx) => {
+    const zone = ["left", "right", "bottom"][Math.floor(Math.random() * 3)];
+    let top, left;
 
+    if (zone === "left") {
+      top = `${Math.random() * 90}%`;
+      left = `${Math.random() * 15}%`;
+    } else if (zone === "right") {
+      top = `${Math.random() * 90}%`;
+      left = `${85 + Math.random() * 10}%`;
+    } else {
+      top = `${85 + Math.random() * 10}%`;
+      left = `${Math.random() * 100}%`;
+    }
+
+    return (
+      <span
+        key={idx}
+        className="absolute text-4xl opacity-30 select-none animate-float"
+        style={{
+          top,
+          left,
+          animationDelay: `${Math.random() * 5}s`,
+        }}
+      >
+        {sym}
+      </span>
+    );
+  });
   return (
     <main className="min-h-screen bg-[#ffff00] flex flex-col">
+            <div className="absolute inset-0 pointer-events-none">{floatingElements}</div>
       <header className="pt-8">
         <h1 className="text-5xl font-extrabold text-gray-900 drop-shadow-3d text-center">
           Welcome to the{" "}
